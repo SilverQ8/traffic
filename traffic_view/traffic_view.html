@@ -42,6 +42,10 @@
   .leaflet-container { font-family: inherit; width: 100%; height: 100%; background: #F3F1EC; }
   .leaflet-control-attribution { display: none !important; }
   .leaflet-control-zoom { display: none !important; }
+  /* Dark mode tile filter (OpenStreetMap free dark style) */
+  .dark-map .leaflet-tile {
+    filter: invert(100%) hue-rotate(180deg) brightness(85%) contrast(90%) !important;
+  }
 </style>
 </head>
 <body>

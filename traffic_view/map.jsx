@@ -39,12 +39,13 @@ function CityMap({
       zoomSnap: 0.5,
     }).setView(initialPos, 16);
 
-    // CartoDB 타일 레이어 (깔끔한 벡터 스타일)
-    const tileUrl = dark
-      ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-      : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+    // 완전 무료 오픈스트리트맵(OSM) 표준 타일 레이어 (API 키 불필요, 워터마크 없음)
+    const tileUrl = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 
-    const tile = L.tileLayer(tileUrl, { maxZoom: 20 }).addTo(map);
+    const tile = L.tileLayer(tileUrl, {
+      maxZoom: 19,
+      subdomains: ["a", "b", "c"],
+    }).addTo(map);
     tileLayerRef.current = tile;
     mapInstanceRef.current = map;
 
@@ -54,13 +55,14 @@ function CityMap({
     };
   }, []);
 
-  // 2) 테마(다크/라이트) 변경 시 타일 전환
+  // 2) 테마(다크/라이트) 클래스 반영
   useEffect(() => {
-    if (!mapInstanceRef.current || !tileLayerRef.current) return;
-    const tileUrl = dark
-      ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-      : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
-    tileLayerRef.current.setUrl(tileUrl);
+    if (!mapRef.current) return;
+    if (dark) {
+      mapRef.current.classList.add("dark-map");
+    } else {
+      mapRef.current.classList.remove("dark-map");
+    }
   }, [dark]);
 
   // 3) 보행 경로(Polyline) 렌더링
