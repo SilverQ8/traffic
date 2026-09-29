@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Sensitive configs & uploads
+traffic_view/config.js
+traffic_view/uploads/
+*.txt
+
+# Exclude bulky 24MB bundled html from git tracking
+traffic_view/신호등 길찾기 앱.html
