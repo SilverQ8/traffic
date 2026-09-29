@@ -1,13 +1,23 @@
-# Dependencies
+# Dependencies & OS artifacts
 node_modules/
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# IDE & Editors
+.vscode/
+.idea/
 
 # Logs
 *.log
 
-# Sensitive configs & uploads
-traffic_view/config.js
+# Sensitive environment & configs
+.env*
+config.js
+**/config.js
+!**/config.sample.js
+
+# Uploads & Dumps
 traffic_view/uploads/
 *.txt
 
