@@ -95,14 +95,23 @@ function CityMap({
     }
   }, [routeCoords, mode, dark]);
 
+  const hasInitialCenteredRef = useRef(false);
+
   // 4) 사용자 위치 마커(GPS / 모의 위치) 업데이트
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !userPos) return;
 
+    // 최초 유효한 GPS 위치 수신 시(또는 좌표가 서울 기본값에서 실제 위치로 갱신되었을 때) 지도 중심 이동
+    const isDefault = Math.abs(userPos[0] - 37.5665) < 0.001 && Math.abs(userPos[1] - 126.9780) < 0.001;
+    if (!hasInitialCenteredRef.current && !isDefault) {
+      hasInitialCenteredRef.current = true;
+      map.setView(userPos, 16.5, { animate: true });
+    }
+
     const iconHtml = `
       <div style="position: relative; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;">
-        <div style="position: absolute; inset: 0; border-radius: 50%; background: #2563EB; opacity: 0.25; animation: tvpulse 1.8s ease-out infinite;"></div>
+        <div style="position: absolute; inset: 0; border-radius: 50%; background: #2563EB; opacity: 0.28; animation: tvpulse 1.8s ease-out infinite;"></div>
         <div style="position: relative; width: 16px; height: 16px; border-radius: 50%; background: #2563EB; border: 3px solid #FFFFFF; box-shadow: 0 2px 6px rgba(0,0,0,0.3); transform: rotate(${userHeading}deg);">
           <div style="position: absolute; top: -5px; left: 3px; width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-bottom: 6px solid #2563EB;"></div>
         </div>
@@ -127,6 +136,13 @@ function CityMap({
       map.panTo(userPos, { animate: true, duration: 0.8 });
     }
   }, [userPos, mode, userHeading]);
+
+  const handleCenterUser = (e) => {
+    e.stopPropagation();
+    if (mapInstanceRef.current && userPos) {
+      mapInstanceRef.current.setView(userPos, 17, { animate: true });
+    }
+  };
 
   // 5) 신호등 마커 업데이트 (초록/빨강 상태 & 카운트다운 뱃지)
   useEffect(() => {
@@ -194,16 +210,43 @@ function CityMap({
   }, [signals, signalsState, activeSignalId]);
 
   return (
-    <div
-      ref={mapRef}
-      style={{
-        position: "absolute",
-        inset: 0,
-        width: "100%",
-        height: "100%",
-        zIndex: 1,
-      }}
-    />
+    <div style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
+      <div
+        ref={mapRef}
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          zIndex: 1,
+        }}
+      />
+      {/* 내 위치로 이동 플로팅 버튼 */}
+      <button
+        onClick={handleCenterUser}
+        title="내 위치로 이동"
+        style={{
+          position: "absolute",
+          right: 16,
+          bottom: mode === "nav" ? 220 : 120,
+          width: 42,
+          height: 42,
+          borderRadius: "50%",
+          background: dark ? "#1E2027" : "#FFFFFF",
+          color: "#2563EB",
+          border: dark ? "1px solid #343842" : "1px solid #ECEAE4",
+          boxShadow: "0 4px 14px rgba(0,0,0,0.18)",
+          zIndex: 15,
+          cursor: "pointer",
+          display: "grid",
+          placeItems: "center",
+          fontSize: 18,
+          transition: "bottom 0.3s ease",
+        }}
+      >
+        🎯
+      </button>
+    </div>
   );
 }
 

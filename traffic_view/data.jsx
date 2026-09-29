@@ -349,6 +349,37 @@ async function searchPlaces(query) {
   }
 }
 
+// 좌표로부터 주소 가져오기 (역지오코딩)
+async function reverseGeocode(lat, lng) {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`;
+    const res = await fetch(url, { headers: { "Accept-Language": "ko" } });
+    if (!res.ok) throw new Error("Reverse geocode failed");
+    const json = await res.json();
+    const addr = json.address || {};
+    const city = addr.city || addr.province || addr.state || "";
+    const borough = addr.borough || addr.suburb || addr.district || "";
+    const road = addr.road || addr.quarter || addr.neighbourhood || "";
+    const shortName = `${city} ${borough} ${road}`.trim() || json.display_name.split(",")[0];
+    return shortName;
+  } catch (e) {
+    return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+  }
+}
+
+// IP 기반 대략적 초기 위치 (권한 승인 전 또는 GPS 수신 전 기본값)
+async function fetchApproxLocation() {
+  try {
+    const res = await fetch("https://ipapi.co/json/");
+    if (!res.ok) throw new Error("ipapi failed");
+    const j = await res.json();
+    if (j.latitude && j.longitude) {
+      return { lat: j.latitude, lng: j.longitude, city: j.city || "내 위치" };
+    }
+  } catch (e) {}
+  return null;
+}
+
 // 포맷 헬퍼 함수
 const mmss = (sec) => {
   sec = Math.max(0, Math.round(sec));
@@ -362,6 +393,6 @@ const fmtDist = (m) => (m >= 1000 ? `${(m / 1000).toFixed(1)}km` : `${Math.round
 Object.assign(window, {
   BASE_SPEED, SPEED_MIN, SPEED_MAX,
   getDistance, getBearing, totalPolylineDistance, coordAtDistance,
-  fetchWalkingRoute, recommendSafeSpeed, searchPlaces,
+  fetchWalkingRoute, recommendSafeSpeed, searchPlaces, reverseGeocode, fetchApproxLocation,
   mmss, kmh, fmtDist,
 });

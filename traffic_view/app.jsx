@@ -167,17 +167,32 @@ async function requestWakeLock() {
 }
 
 // ---------- 1. SEARCH SCREEN ----------
-const DEFAULT_PRESETS = [
-  { name: "서울시청 앞 광장", sub: "서울특별시 중구 세종대로 110", lat: 37.5665, lng: 126.9780 },
-  { name: "광화문역 9번 출구", sub: "서울특별시 종로구 세종대로 172", lat: 37.5716, lng: 126.9768 },
-  { name: "덕수궁 대한문", sub: "서울특별시 중구 세종대로 99", lat: 37.5658, lng: 126.9752 },
-  { name: "명동성당 입구", sub: "서울특별시 중구 명동길 74", lat: 37.5631, lng: 126.9873 },
-];
-
-function SearchScreen({ onSelectDestination, onOpenSettings, currentPos, isGpsReady, gpsMode, setGpsMode }) {
+function SearchScreen({
+  onSelectDestination, onOpenSettings, currentPos, currentAddr, isGpsReady, gpsMode, setGpsMode,
+  gpsStatus, onRefreshGps
+}) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
+
+  // 현재 위치 주변 스마트 추천 목록
+  const smartPresets = useMemo(() => {
+    // 위도가 35.5 미만이면 부산/경남권
+    if (currentPos && currentPos[0] < 35.5) {
+      return [
+        { name: "서면역 1번 출구", sub: "부산광역시 부산진구 중앙대로 730", lat: 35.1578, lng: 129.0593 },
+        { name: "부산역 광장", sub: "부산광역시 동구 중앙대로 206", lat: 35.1152, lng: 129.0422 },
+        { name: "광안리 해수욕장 만남의광장", sub: "부산광역시 수영구 광안해변로 219", lat: 35.1532, lng: 129.1186 },
+        { name: "해운대역 3번 출구", sub: "부산광역시 해운대구 구남로 41", lat: 35.1631, lng: 129.1587 },
+      ];
+    }
+    return [
+      { name: "서울시청 앞 광장", sub: "서울특별시 중구 세종대로 110", lat: 37.5665, lng: 126.9780 },
+      { name: "광화문역 9번 출구", sub: "서울특별시 종로구 세종대로 172", lat: 37.5716, lng: 126.9768 },
+      { name: "덕수궁 대한문", sub: "서울특별시 중구 세종대로 99", lat: 37.5658, lng: 126.9752 },
+      { name: "명동성당 입구", sub: "서울특별시 중구 명동길 74", lat: 37.5631, lng: 126.9873 },
+    ];
+  }, [currentPos]);
 
   // 실시간 주소 검색 (Debounced)
   useEffect(() => {
@@ -199,17 +214,17 @@ function SearchScreen({ onSelectDestination, onOpenSettings, currentPos, isGpsRe
       <StatusBar />
       <div style={{ padding: "4px 20px 14px" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          {/* GPS 모드 토글 (실제 GPS ↔ 모의 시뮬레이션) */}
+          {/* GPS 모드 토글 */}
           <div style={{ display: "inline-flex", background: C.surface, padding: 3, borderRadius: 12, boxShadow: "0 1px 6px rgba(0,0,0,0.08)" }}>
             <button
-              onClick={() => setGpsMode("real")}
+              onClick={() => { setGpsMode("real"); onRefreshGps && onRefreshGps(); }}
               style={{
                 border: "none", padding: "6px 12px", borderRadius: 9, cursor: "pointer", fontSize: 12, fontWeight: 700,
                 background: gpsMode === "real" ? C.primary : "transparent",
                 color: gpsMode === "real" ? C.primaryText : C.ink2,
               }}
             >
-              실제 GPS {isGpsReady && "●"}
+              실제 GPS {isGpsReady ? "●" : "○"}
             </button>
             <button
               onClick={() => setGpsMode("sim")}
@@ -228,18 +243,48 @@ function SearchScreen({ onSelectDestination, onOpenSettings, currentPos, isGpsRe
           </button>
         </div>
 
+        {/* GPS 권한 거부 안내 배너 */}
+        {gpsStatus === "denied" && (
+          <div style={{
+            background: "#FFF1F0", border: "1px solid #FFCCC7", borderRadius: 12,
+            padding: "8px 12px", marginBottom: 10, fontSize: 12, color: "#CF1322",
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+          }}>
+            <span>⚠️ 브라우저 주소창 좌측의 자물쇠/설정에서 [위치 권한]을 허용해 주세요.</span>
+            <button onClick={onRefreshGps} style={{ border: "none", background: "none", color: "#2563EB", fontWeight: 700, cursor: "pointer", fontSize: 12 }}>
+              재시도
+            </button>
+          </div>
+        )}
+
         <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.02em", color: C.ink, marginBottom: 14 }}>
           어디로 걸어갈까요?
         </div>
 
         <div style={{ background: C.surface, borderRadius: 18, padding: 6, boxShadow: "0 2px 14px rgba(28,29,33,.08)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px" }}>
+          {/* 출발지 (내 위치) */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px" }}>
             <span style={{ width: 9, height: 9, borderRadius: 9, border: `3px solid ${C.walk}` }} />
-            <span style={{ flex: 1, fontSize: 15, fontWeight: 600, color: C.ink2 }}>
-              {isGpsReady ? "현재 내 위치 (실시간 GPS 연동)" : "현재 위치 (기본 위치)"}
-            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {currentAddr || (isGpsReady ? "실시간 GPS 위치 인식됨" : "내 위치 확인 중…")}
+              </div>
+              <div style={{ fontSize: 11, color: isGpsReady ? C.green : C.ink3, marginTop: 1 }}>
+                {isGpsReady ? `● GPS 수신 중 (${currentPos[0].toFixed(4)}, ${currentPos[1].toFixed(4)})` : "위치 정보를 가져오는 중입니다"}
+              </div>
+            </div>
+            <button
+              onClick={onRefreshGps}
+              title="내 위치 다시 찾기"
+              style={{ border: "none", background: C.bg, borderRadius: 8, padding: "5px 8px", fontSize: 11.5, fontWeight: 700, color: C.ink2, cursor: "pointer" }}
+            >
+              🔄 재탐색
+            </button>
           </div>
+
           <div style={{ height: 1, background: C.line, margin: "0 14px" }} />
+
+          {/* 도착지 검색 입력 */}
           <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px" }}>
             <span style={{ width: 9, height: 9, borderRadius: 2, background: C.ink }} />
             <input
@@ -259,9 +304,9 @@ function SearchScreen({ onSelectDestination, onOpenSettings, currentPos, isGpsRe
       {/* 목록 (검색 결과 또는 추천 장소) */}
       <div style={{ flex: 1, overflowY: "auto", padding: "4px 16px 20px" }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: C.ink3, padding: "10px 4px 6px" }}>
-          {results.length > 0 ? "검색 결과" : "추천 목적지"}
+          {results.length > 0 ? "검색 결과" : "내 주변 추천 목적지"}
         </div>
-        {(results.length > 0 ? results : DEFAULT_PRESETS).map((item, idx) => (
+        {(results.length > 0 ? results : smartPresets).map((item, idx) => (
           <button
             key={idx}
             onClick={() => onSelectDestination(item)}
@@ -589,6 +634,8 @@ function App() {
   const [destination, setDestination] = useState(null);
   const [routeData, setRouteData] = useState(null);
   const [userPos, setUserPos] = useState([37.5665, 126.9780]); // 기본: 서울시청
+  const [currentAddr, setCurrentAddr] = useState("");
+  const [gpsStatus, setGpsStatus] = useState("loading"); // 'loading' | 'ready' | 'denied' | 'error'
   const [userDist, setUserDist] = useState(0);
   const [gpsMode, setGpsMode] = useState("real"); // 'real' | 'sim'
   const [isGpsReady, setIsGpsReady] = useState(false);
@@ -615,22 +662,56 @@ function App() {
     document.body.style.background = settings.dark ? "#000" : "#E4E1DA";
   }, [settings.dark, settings.a11y]);
 
-  // 1) 실제 스마트폰 GPS Geolocation 추적
-  useEffect(() => {
+  // 좌표 업데이트 및 주소 역지오코딩
+  const applyNewPos = useCallback(async (lat, lng) => {
+    setUserPos([lat, lng]);
+    setIsGpsReady(true);
+    setGpsStatus("ready");
+    const addr = await window.reverseGeocode(lat, lng);
+    setCurrentAddr(addr);
+  }, []);
+
+  // GPS 즉시 재탐색 함수
+  const refreshGps = useCallback(() => {
     if (!navigator.geolocation) {
-      console.warn("Geolocation 미지원 브라우저");
-      setGpsMode("sim");
+      setGpsStatus("error");
       return;
     }
+    setGpsStatus("loading");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        applyNewPos(pos.coords.latitude, pos.coords.longitude);
+      },
+      (err) => {
+        console.warn("GPS 획득 실패:", err);
+        if (err.code === 1) setGpsStatus("denied"); // PERMISSION_DENIED
+        else setGpsStatus("error");
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+    );
+  }, [applyNewPos]);
 
+  // 1) 초기 위치 획득 (IP 대략적 위치 + 고정밀 Geolocation 병렬 시도)
+  useEffect(() => {
+    // 1단계: IP 기반 빠른 초기 도시 감지
+    window.fetchApproxLocation().then((loc) => {
+      if (loc && !isGpsReady) {
+        setUserPos([loc.lat, loc.lng]);
+        setCurrentAddr(loc.city);
+      }
+    });
+
+    // 2단계: 실제 고정밀 GPS 1회 즉시 요청
+    refreshGps();
+
+    // 3단계: 지속적 위치 변경 감시
+    if (!navigator.geolocation) return;
     const watchId = navigator.geolocation.watchPosition(
       (pos) => {
-        setIsGpsReady(true);
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
         if (gpsMode === "real") {
-          setUserPos([lat, lng]);
-          // 내비게이션 중이면 이동 거리 계산
+          applyNewPos(lat, lng);
           if (routeData && routeData.coords) {
             const startPt = routeData.coords[0];
             const distFromStart = window.getDistance(startPt, [lat, lng]);
@@ -639,16 +720,13 @@ function App() {
         }
       },
       (err) => {
-        console.warn("GPS 수신 대기 / 오류:", err.message);
-        if (gpsMode === "real") {
-          // GPS 수신 불가 시 시뮬레이션 위치 유지
-        }
+        if (err.code === 1) setGpsStatus("denied");
       },
       { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 }
     );
 
     return () => navigator.geolocation.clearWatch(watchId);
-  }, [gpsMode, routeData]);
+  }, [gpsMode, routeData, applyNewPos, refreshGps]);
 
   // 2) Screen Wake Lock (화면 꺼짐 방지)
   useEffect(() => {
@@ -805,9 +883,12 @@ function App() {
       {screen === "search" && (
         <SearchScreen
           currentPos={userPos}
+          currentAddr={currentAddr}
           isGpsReady={isGpsReady}
           gpsMode={gpsMode}
+          gpsStatus={gpsStatus}
           setGpsMode={setGpsMode}
+          onRefreshGps={refreshGps}
           onSelectDestination={handleSelectDestination}
           onOpenSettings={() => setShowSettings(true)}
         />
